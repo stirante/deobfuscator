@@ -39,14 +39,15 @@ public class Main {
         field.setAccessible(true);
         Logger.getGlobal().setLevel(Level.SEVERE);
         File file = new File(args[0]);
-//        File file = new File("C:\\Users\\Artia\\Downloads\\com.snapchat.android_9.39.5.0-933_minAPI16(armeabi-v7a)(nodpi)_apkmirror.com.apk");
         String name = file.getName().substring(0, file.getName().lastIndexOf('.')) + ".jobf";
         final PrintStream out = new PrintStream(new FileOutputStream(new File(file.getParentFile(), name)));
         out.println("p =defaultPackage");
+        //TODO: Add option for adding custom patterns
+        //Snapchat logging
         final Pattern timberPattern = Pattern.compile("Timber\\..+\\(\"([A-Za-z_/]+)\".+");
-//        final Pattern verbosePattern = Pattern.compile("aiI\\..+\\(\"([A-Za-z_/]+)\".+");
-//        final Pattern messengerPattern = Pattern.compile("a\\..+\\(\"([A-Za-z_/]+)\".+");
+        //Default logging
         final Pattern logPattern = Pattern.compile("Log\\..+\\(\"([A-Za-z_/]+)\".+");
+        //Often used
         final Pattern tagPattern = Pattern.compile("static final String TAG = \"([A-za-z0-9_/]+)\";");
         final Pattern[] patterns = new Pattern[]{tagPattern, timberPattern, logPattern};
         final Pattern cleaner = Pattern.compile("C[0-9]+");
@@ -141,8 +142,12 @@ public class Main {
         final Method m = JavaClass.class.getDeclaredMethod("getClassNode");
         m.setAccessible(true);
         for (final JavaClass cls : jadxDecompiler.getClasses()) {
+            //usually obfuscated classes have obfuscated package as well, so we will ignore it.
+            //TODO: Add option for that
             if (cls.getFullName().startsWith("com.") || cls.getFullName().startsWith("org.") || cls.getFullName().startsWith("android.") || cls.getFullName().startsWith("net."))
                 continue;
+            //usually obfuscated names are from 1 to 3 characters long, so we will ignore longer names
+            //TODO: Maybe add option for that
             if (cls.getName().length() > 3)
                 continue;
             String clsName = null;
@@ -154,6 +159,7 @@ public class Main {
             }
             ClassNode node = (ClassNode) field.get(cls);
             SourceFileAttr attr = node.get(AType.SOURCE_FILE);
+            //If we have source name
             if (attr != null) {
                 out.println("c " + cls.getFullName() + "=" + attr.getFileName() + "_" + cls.getName());
                 oldToNew.put(cls.getFullName(), attr.getFileName());
@@ -206,10 +212,12 @@ public class Main {
                     }
                 }
             }
+            //Add inner classes to second pass
             if (clsName == null && origClassName.contains("$")) {
                 checkLater.add(fullName);
             }
         }
+        //Second pass
         for (String s : checkLater) {
             String suffix = s.substring(s.lastIndexOf('$'));
             String fullName = s.substring(0, s.lastIndexOf('$'));
@@ -228,6 +236,7 @@ public class Main {
         }
         out.flush();
         out.close();
+        //print new names
         for (String s : oldToNew.keySet()) {
             System.out.println(s + " -> " + oldToNew.get(s));
         }
